@@ -1,0 +1,25 @@
+import os
+
+# Supabase credentials
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jbvsmbmbbafblbpwryub.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_MVJVmkVbZahAE6dA0mQJzw_WgsESGLS")
+
+BINANCE_BASE_URL = "https://api.binance.com"
+TOP_N_COINS = 200
+
+TIMEFRAME_1H = "1h"
+TIMEFRAME_15M = "15m"
+CANDLE_LIMIT = 200
+SCAN_INTERVAL_SECONDS = 300
+
+RSI_PERIOD = 14
+RSI_OVERSOLD = 30
+MIN_CONFLUENCE_SCORE = 4
+SL_BUFFER_PCT = 0.025
+
+EMA_PERIOD = 800
+BB_PERIOD = 30
+BB_STD_DEV = 2.5
+RISK_REWARD_RATIO = 4
+VOLUME_SPIKE_MULTIPLIER = 1.5
+MIN_SUPER_SIGNAL_SCORE = 3
