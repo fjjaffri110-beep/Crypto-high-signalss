@@ -48,6 +48,37 @@ TP3: {result.get('tp3')}
                 if result:
                     db.insert_signal(result)
                     print(f"  NEW 15M signal: {symbol} {result['direction']} conf={result['confidence_pct']}%")
+send_signal(f"""
+⚡ 15M ENTRY SIGNAL
+
+Coin: {symbol}
+
+Direction: {result['direction']}
+
+Confidence:
+{result['confidence_pct']}%
+
+Entry:
+{result.get('entry')}
+
+Stop Loss:
+{result.get('sl')}
+
+TP1:
+{result.get('tp1')}
+
+TP2:
+{result.get('tp2')}
+
+TP3:
+{result.get('tp3')}
+
+Strategy:
+EMA 800 + Bollinger 30/2.5
+
+Risk Reward:
+1:4
+""")
         except Exception as e:
             print(f"  15M error on {symbol}: {e}")
 
