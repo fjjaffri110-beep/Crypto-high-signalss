@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Desk</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg: #0b0f0e; --panel: #121816; --line: #223028; --text: #dce8e2;
+    --muted: #6f8a7f; --buy: #3ddc84; --short: #ff5c5c; --amber: #e8b339;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 32px 24px 60px; }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+  h1 { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 800; margin: 4px 0 28px; letter-spacing: -0.01em; }
+  h1 span { color: var(--buy); }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 36px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .stat .label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat .value { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; margin-top: 6px; }
+  .stat.win .value { color: var(--buy); }
+  .stat.loss .value { color: var(--short); }
+  .section-title { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--muted); margin: 40px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .section-title::before { content: ''; width: 6px; height: 6px; background: var(--buy); border-radius: 50%; display: inline-block; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th { text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); font-family: 'JetBrains Mono', monospace; }
+  tr:last-child td { border-bottom: none; }
+  .dir-buy { color: var(--buy); font-weight: 700; }
+  .dir-short { color: var(--short); font-weight: 700; }
+  .status-active { color: var(--amber); }
+  .status-closed { color: var(--muted); }
+  .empty { padding: 24px; text-align: center; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="eyebrow">Weekly Performance — Last 7 Days</div>
+  <h1>Signal<span>Desk</span></h1>
+
+  <div class="stat-row">
+    <div class="stat"><div class="label">Total Signals</div><div class="value">{{ overall.total }}</div></div>
+    <div class="stat"><div class="label">Active</div><div class="value">{{ overall.active }}</div></div>
+    <div class="stat loss"><div class="label">SL Hit</div><div class="value">{{ overall.sl_hits }}</div></div>
+    <div class="stat win"><div class="label">TP Hit</div><div class="value">{{ overall.tp_hits }}</div></div>
+    <div class="stat win"><div class="label">Win Ratio</div><div class="value">{{ overall.win_ratio }}%</div></div>
+  </div>
+
+  {% for label, stats in [("1H Bottom Reversal", stats_1h), ("15M Super Signal", stats_15m)] %}
+  <div class="section-title">{{ label }}</div>
+  <div class="stat-row">
+    <div class="stat"><div class="label">Total</div><div class="value">{{ stats.total }}</div></div>
+    <div class="stat"><div class="label">Active</div><div class="value">{{ stats.active }}</div></div>
+    <div class="stat loss"><div class="label">SL Hit</div><div class="value">{{ stats.sl_hits }}</div></div>
+    <div class="stat win"><div class="label">TP Hit</div><div class="value">{{ stats.tp_hits }}</div></div>
+    <div class="stat win"><div class="label">Win Ratio</div><div class="value">{{ stats.win_ratio }}%</div></div>
+  </div>
+
+  {% if stats.signals %}
+  <table>
+    <tr><th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>Confidence</th><th>Status</th><th>Result</th></tr>
+    {% for s in stats.signals %}
+    <tr>
+      <td>{{ s.symbol }}</td>
+      <td class="dir-{{ 'buy' if s.direction == 'BUY' else 'short' }}">{{ s.direction }}</td>
+      <td>{{ s.entry_price }}</td>
+      <td>{{ s.sl }}</td>
+      <td>{{ s.tp3 or s.tp1 }}</td>
+      <td>{{ s.confidence_pct }}%</td>
+      <td class="status-{{ s.status|lower }}">{{ s.status }}</td>
+      <td>{{ s.result or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">No signals in the last 7 days yet — the engine is watching.</div>
+  {% endif %}
+  {% endfor %}
+</body>
+</html>
