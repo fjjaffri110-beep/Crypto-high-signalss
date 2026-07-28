@@ -24,6 +24,20 @@ def scan_for_new_signals():
                 if result:
                     db.insert_signal(result)
                     print(f"  NEW 1H signal: {symbol} {result['direction']} conf={result['confidence_pct']}%")
+       send_signal(f"""
+🔥 1H HIGH PROBABILITY SIGNAL
+
+Coin: {symbol}
+Direction: {result['direction']}
+Confidence: {result['confidence_pct']}%
+
+Entry: {result.get('entry')}
+SL: {result.get('sl')}
+
+TP1: {result.get('tp1')}
+TP2: {result.get('tp2')}
+TP3: {result.get('tp3')}
+""")
         except Exception as e:
             print(f"  1H error on {symbol}: {e}")
 
