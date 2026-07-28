@@ -10,7 +10,7 @@ import database as db
 from signal_engine_1h import analyze_1h
 from signal_engine_15m import analyze_15m
 from config import TIMEFRAME_1H, TIMEFRAME_15M, SCAN_INTERVAL_SECONDS
-
+from telegram_alert import send_signal
 
 def scan_for_new_signals():
     print(f"[{datetime.utcnow()}] Scanning for new signals...")
