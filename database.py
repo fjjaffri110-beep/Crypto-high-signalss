@@ -1,9 +1,13 @@
 """
-Supabase database interface. Uses Supabase's REST API directly via requests.
+Supabase database interface.
+Stores advanced AI + SMC signal data.
 """
+
 import requests
 from datetime import datetime, timezone
+
 from config import SUPABASE_URL, SUPABASE_KEY
+
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -12,68 +16,238 @@ HEADERS = {
     "Prefer": "return=representation",
 }
 
+
 TABLE = "signals"
+
 
 
 def _url(path=""):
     return f"{SUPABASE_URL}/rest/v1/{TABLE}{path}"
 
 
+
 def insert_signal(signal: dict):
+
     payload = {
-        "symbol": signal["symbol"],
-        "signal_type": signal["signal_type"],
-        "direction": signal["direction"],
-        "entry_price": signal["entry_price"],
-        "sl": signal["sl"],
-        "tp1": signal["tp1"],
-        "tp2": signal.get("tp2"),
-        "tp3": signal.get("tp3"),
-        "confidence_pct": signal["confidence_pct"],
-        "reasons": ", ".join(signal["reasons"]),
-        "status": "ACTIVE",
-        "result": None,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+
+        "symbol":
+        signal.get("symbol"),
+
+
+        "signal_type":
+        signal.get("signal_type"),
+
+
+        "direction":
+        signal.get("direction"),
+
+
+        "entry_price":
+        signal.get("entry_price"),
+
+
+        "sl":
+        signal.get("sl"),
+
+
+        "tp1":
+        signal.get("tp1"),
+
+
+        "tp2":
+        signal.get("tp2"),
+
+
+        "tp3":
+        signal.get("tp3"),
+
+
+        "confidence_pct":
+        signal.get("confidence_pct"),
+
+
+        "score":
+        signal.get("score"),
+
+
+        "smc":
+        signal.get("smc"),
+
+
+        "ai_details":
+        {
+            "score": signal.get("score"),
+            "reasons": signal.get("reasons", [])
+        },
+
+
+        "reasons":
+        ", ".join(
+            signal.get("reasons", [])
+        ),
+
+
+        "status":
+        "ACTIVE",
+
+
+        "result":
+        None,
+
+
+        "created_at":
+        datetime.now(
+            timezone.utc
+        ).isoformat(),
+
     }
-    resp = requests.post(_url(), json=payload, headers=HEADERS, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
 
 
-def get_active_signals(signal_type: str = None):
-    params = {"status": "eq.ACTIVE"}
-    if signal_type:
-        params["signal_type"] = f"eq.{signal_type}"
-    resp = requests.get(_url(), params=params, headers=HEADERS, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
+    response = requests.post(
+        _url(),
+        json=payload,
+        headers=HEADERS,
+        timeout=15
+    )
 
 
-def has_active_signal(symbol: str, signal_type: str) -> bool:
+    response.raise_for_status()
+
+    return response.json()
+
+
+
+
+
+def get_active_signals(signal_type=None):
+
     params = {
-        "symbol": f"eq.{symbol}",
-        "signal_type": f"eq.{signal_type}",
-        "status": "eq.ACTIVE",
+        "status": "eq.ACTIVE"
     }
-    resp = requests.get(_url(), params=params, headers=HEADERS, timeout=15)
-    resp.raise_for_status()
-    return len(resp.json()) > 0
+
+
+    if signal_type:
+
+        params["signal_type"] = (
+            f"eq.{signal_type}"
+        )
+
+
+    response = requests.get(
+        _url(),
+        params=params,
+        headers=HEADERS,
+        timeout=15
+    )
+
+
+    response.raise_for_status()
+
+    return response.json()
+
+
+
+
+
+def has_active_signal(symbol: str, signal_type: str):
+
+    params = {
+
+        "symbol":
+        f"eq.{symbol}",
+
+
+        "signal_type":
+        f"eq.{signal_type}",
+
+
+        "status":
+        "eq.ACTIVE",
+    }
+
+
+    response = requests.get(
+        _url(),
+        params=params,
+        headers=HEADERS,
+        timeout=15
+    )
+
+
+    response.raise_for_status()
+
+
+    return len(
+        response.json()
+    ) > 0
+
+
+
 
 
 def deactivate_signal(signal_id, result: str):
+
     payload = {
-        "status": "CLOSED",
-        "result": result,
-        "closed_at": datetime.now(timezone.utc).isoformat(),
+
+        "status":
+        "CLOSED",
+
+
+        "result":
+        result,
+
+
+        "closed_at":
+        datetime.now(
+            timezone.utc
+        ).isoformat(),
+
     }
-    params = {"id": f"eq.{signal_id}"}
-    resp = requests.patch(_url(), params=params, json=payload, headers=HEADERS, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
+
+
+    params = {
+        "id":
+        f"eq.{signal_id}"
+    }
+
+
+    response = requests.patch(
+        _url(),
+        params=params,
+        json=payload,
+        headers=HEADERS,
+        timeout=15
+    )
+
+
+    response.raise_for_status()
+
+
+    return response.json()
+
+
+
 
 
 def get_signals_since(iso_date: str):
-    params = {"created_at": f"gte.{iso_date}"}
-    resp = requests.get(_url(), params=params, headers=HEADERS, timeout=15)
-    resp.raise_for_status()
-    return resp.json()
+
+    params = {
+
+        "created_at":
+        f"gte.{iso_date}"
+
+    }
+
+
+    response = requests.get(
+        _url(),
+        params=params,
+        headers=HEADERS,
+        timeout=15
+    )
+
+
+    response.raise_for_status()
+
+
+    return response.json()
