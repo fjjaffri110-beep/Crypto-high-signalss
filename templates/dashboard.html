@@ -1,1 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Signal Dashboard</title>
+<style>
+body{font-family:Arial;background:#111;color:#fff;padding:20px}
+.box{background:#222;padding:10px;margin:10px 0;border-radius:8px}
+h1{color:#00ff88}
+h2{color:#ffd54f}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #444;padding:6px;text-align:left}
+.buy{color:#00ff88;font-weight:bold}
+.short{color:#ff5252;font-weight:bold}
+</style>
+</head>
 
+<body>
+
+<h1>Crypto Signal Dashboard</h1>
+
+<div class="box">
+<b>Total:</b> {{ overall.total }} |
+<b>Active:</b> {{ overall.active }} |
+<b>TP:</b> {{ overall.tp_hits }} |
+<b>SL:</b> {{ overall.sl_hits }} |
+<b>Win:</b> {{ overall.win_ratio }}%
+</div>
+
+{% macro show(title,data) %}
+<h2>{{ title }}</h2>
+
+<div class="box">
+<b>Total:</b> {{ data.total }} |
+<b>Active:</b> {{ data.active }} |
+<b>Win:</b> {{ data.win_ratio }}%
+</div>
+
+<table>
+<tr>
+<th>Coin</th>
+<th>Dir</th>
+<th>Entry</th>
+<th>Conf</th>
+<th>Status</th>
+</tr>
+
+{% for s in data.signals[:5] %}
+<tr>
+<td>{{ s.symbol }}</td>
+<td class="{{ 'buy' if s.direction=='BUY' else 'short' }}">
+{{ s.direction }}
+</td>
+<td>{{ s.entry_price }}</td>
+<td>{{ s.confidence_pct }}%</td>
+<td>{{ s.status }}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+{% endmacro %}
+
+{{ show("🟢 1H Bottom Reversal (Old)", old_1h) }}
+
+{{ show("🔵 15M Super Signal (Old)", old_15m) }}
+
+{{ show("🟡 1H Smart Money (New)", new_1h) }}
+
+{{ show("🔴 15M Super Signal New", new_15m) }}
+
+</body>
+</html>
