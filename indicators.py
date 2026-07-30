@@ -1,133 +1,497 @@
 """
-All technical indicator calculations used by both signal engines.
-Works on a pandas DataFrame with columns: open, high, low, close, volume
+Advanced Technical + Smart Money Concepts Indicators
+
+DataFrame required columns:
+open, high, low, close, volume
 """
+
 import pandas as pd
 import numpy as np
 
 
-def rsi(df: pd.DataFrame, period: int = 14) -> pd.Series:
+# =========================
+# BASIC INDICATORS
+# =========================
+
+def rsi(df: pd.DataFrame, period: int = 14):
     delta = df["close"].diff()
-    gain = delta.where(delta > 0, 0.0)
-    loss = -delta.where(delta < 0, 0.0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
+
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
+
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    rsi_val = 100 - (100 / (1 + rs))
-    return rsi_val.fillna(50)
+
+    result = 100 - (100 / (1 + rs))
+
+    return result.fillna(50)
 
 
-def ema(df: pd.DataFrame, period: int, column: str = "close") -> pd.Series:
-    return df[column].ewm(span=period, adjust=False).mean()
+def ema(df: pd.DataFrame, period: int, column="close"):
+    return df[column].ewm(
+        span=period,
+        adjust=False
+    ).mean()
 
 
-def bollinger_bands(df: pd.DataFrame, period: int = 30, std_dev: float = 2.5):
-    middle = df["close"].rolling(window=period).mean()
-    std = df["close"].rolling(window=period).std()
+def bollinger_bands(df, period=30, std_dev=2.5):
+
+    middle = df["close"].rolling(period).mean()
+    std = df["close"].rolling(period).std()
+
     upper = middle + (std * std_dev)
     lower = middle - (std * std_dev)
+
     return upper, middle, lower
 
 
-def macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9):
-    ema_fast = df["close"].ewm(span=fast, adjust=False).mean()
-    ema_slow = df["close"].ewm(span=slow, adjust=False).mean()
-    macd_line = ema_fast - ema_slow
-    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+def macd(df, fast=12, slow=26, signal=9):
+
+    fast_ema = ema(df, fast)
+    slow_ema = ema(df, slow)
+
+    macd_line = fast_ema - slow_ema
+    signal_line = macd_line.ewm(
+        span=signal,
+        adjust=False
+    ).mean()
+
     return macd_line, signal_line
 
 
-def volume_spike(df: pd.DataFrame, lookback: int = 20, multiplier: float = 1.5) -> pd.Series:
-    avg_vol = df["volume"].rolling(window=lookback).mean()
-    return df["volume"] > (avg_vol * multiplier)
+
+# =========================
+# VOLUME INDICATORS
+# =========================
 
 
-def swing_lows(df: pd.DataFrame, window: int = 5) -> pd.Series:
-    """Returns True where a candle's low is a local minimum (swing low)."""
-    lows = df["low"]
-    is_swing = (lows == lows.rolling(window=window * 2 + 1, center=True).min())
-    return is_swing.fillna(False)
+def volume_spike(df, lookback=20, multiplier=1.5):
+
+    avg_volume = df["volume"].rolling(
+        lookback
+    ).mean()
+
+    return df["volume"] > (
+        avg_volume * multiplier
+    )
 
 
-def swing_highs(df: pd.DataFrame, window: int = 5) -> pd.Series:
-    highs = df["high"]
-    is_swing = (highs == highs.rolling(window=window * 2 + 1, center=True).max())
-    return is_swing.fillna(False)
+
+def obv(df):
+
+    direction = np.where(
+        df["close"] > df["close"].shift(1),
+        1,
+        -1
+    )
+
+    return (
+        df["volume"] * direction
+    ).cumsum()
 
 
-def last_swing_low(df: pd.DataFrame, window: int = 5, lookback_candles: int = 50):
-    sw = swing_lows(df, window)
-    recent = df.iloc[-lookback_candles:]
-    recent_sw = sw.iloc[-lookback_candles:]
-    matches = recent.loc[recent_sw]
-    if len(matches) == 0:
-        return df["low"].iloc[-lookback_candles:].min()
-    return matches["low"].iloc[-1]
+
+# =========================
+# ATR / ADX / VWAP
+# =========================
 
 
-def last_swing_high(df: pd.DataFrame, window: int = 5, lookback_candles: int = 50):
-    sw = swing_highs(df, window)
-    recent = df.iloc[-lookback_candles:]
-    recent_sw = sw.iloc[-lookback_candles:]
-    matches = recent.loc[recent_sw]
-    if len(matches) == 0:
-        return df["high"].iloc[-lookback_candles:].max()
-    return matches["high"].iloc[-1]
+def atr(df, period=14):
+
+    high_low = df["high"] - df["low"]
+
+    high_close = abs(
+        df["high"] - df["close"].shift()
+    )
+
+    low_close = abs(
+        df["low"] - df["close"].shift()
+    )
+
+    tr = pd.concat(
+        [
+            high_low,
+            high_close,
+            low_close
+        ],
+        axis=1
+    ).max(axis=1)
+
+    return tr.rolling(period).mean()
 
 
-def support_resistance_zones(df: pd.DataFrame, window: int = 5, lookback_candles: int = 100, num_zones: int = 3):
-    """Rough support/resistance levels from recent swing points, sorted by proximity to current price."""
-    sw_low = swing_lows(df, window)
-    sw_high = swing_highs(df, window)
-    recent = df.iloc[-lookback_candles:]
-    supports = sorted(recent.loc[sw_low.iloc[-lookback_candles:], "low"].tolist())
-    resistances = sorted(recent.loc[sw_high.iloc[-lookback_candles:], "high"].tolist())
-    return supports[-num_zones:] if supports else [], resistances[:num_zones] if resistances else []
+
+def vwap(df):
+
+    price = (
+        df["high"]
+        + df["low"]
+        + df["close"]
+    ) / 3
+
+    return (
+        price * df["volume"]
+    ).cumsum() / df["volume"].cumsum()
 
 
-def bullish_divergence(df: pd.DataFrame, rsi_series: pd.Series, lookback: int = 30) -> bool:
-    """
-    Price makes a new (lower) low while RSI makes a higher low -> bullish divergence.
-    Simple check comparing the last two swing lows in the lookback window.
-    """
-    sw = swing_lows(df, window=3)
-    recent_idx = df.iloc[-lookback:].index
-    sw_recent = sw.loc[sw.index.isin(recent_idx) & sw]
-    if len(sw_recent) < 2:
+
+def adx(df, period=14):
+
+    plus_dm = df["high"].diff()
+
+    minus_dm = (
+        -df["low"].diff()
+    )
+
+    plus_dm[
+        plus_dm < 0
+    ] = 0
+
+    minus_dm[
+        minus_dm < 0
+    ] = 0
+
+
+    tr = atr(df, period)
+
+    plus_di = (
+        100 *
+        plus_dm.rolling(period).mean()
+        /
+        tr
+    )
+
+    minus_di = (
+        100 *
+        minus_dm.rolling(period).mean()
+        /
+        tr
+    )
+
+
+    dx = (
+        abs(plus_di - minus_di)
+        /
+        (plus_di + minus_di)
+    ) * 100
+
+
+    return dx.rolling(period).mean()
+
+
+
+# =========================
+# SWING STRUCTURE
+# =========================
+
+
+def swing_lows(df, window=5):
+
+    return (
+        df["low"]
+        ==
+        df["low"]
+        .rolling(
+            window*2+1,
+            center=True
+        )
+        .min()
+    ).fillna(False)
+
+
+
+def swing_highs(df, window=5):
+
+    return (
+        df["high"]
+        ==
+        df["high"]
+        .rolling(
+            window*2+1,
+            center=True
+        )
+        .max()
+    ).fillna(False)
+
+
+
+def last_swing_low(df):
+
+    swings = swing_lows(df)
+
+    points = df.loc[swings]
+
+    if len(points):
+
+        return points["low"].iloc[-1]
+
+    return df["low"].iloc[-50:].min()
+
+
+
+def last_swing_high(df):
+
+    swings = swing_highs(df)
+
+    points = df.loc[swings]
+
+    if len(points):
+
+        return points["high"].iloc[-1]
+
+    return df["high"].iloc[-50:].max()
+
+
+
+# =========================
+# RSI DIVERGENCE
+# =========================
+
+
+def bullish_divergence(df, rsi_series):
+
+    lows = swing_lows(df)
+
+    points = df[lows]
+
+    if len(points) < 2:
         return False
-    idx1, idx2 = sw_recent.index[-2], sw_recent.index[-1]
-    price1, price2 = df.loc[idx1, "low"], df.loc[idx2, "low"]
-    rsi1, rsi2 = rsi_series.loc[idx1], rsi_series.loc[idx2]
-    return bool(price2 < price1 and rsi2 > rsi1)
 
 
-def bearish_divergence(df: pd.DataFrame, rsi_series: pd.Series, lookback: int = 30) -> bool:
-    sw = swing_highs(df, window=3)
-    recent_idx = df.iloc[-lookback:].index
-    sw_recent = sw.loc[sw.index.isin(recent_idx) & sw]
-    if len(sw_recent) < 2:
+    p1 = points["low"].iloc[-2]
+    p2 = points["low"].iloc[-1]
+
+
+    r1 = rsi_series.loc[
+        points.index[-2]
+    ]
+
+    r2 = rsi_series.loc[
+        points.index[-1]
+    ]
+
+
+    return (
+        p2 < p1
+        and
+        r2 > r1
+    )
+
+
+
+def bearish_divergence(df, rsi_series):
+
+    highs = swing_highs(df)
+
+    points = df[highs]
+
+    if len(points) < 2:
         return False
-    idx1, idx2 = sw_recent.index[-2], sw_recent.index[-1]
-    price1, price2 = df.loc[idx1, "high"], df.loc[idx2, "high"]
-    rsi1, rsi2 = rsi_series.loc[idx1], rsi_series.loc[idx2]
-    return bool(price2 > price1 and rsi2 < rsi1)
 
 
-def bullish_candle_pattern(df: pd.DataFrame) -> bool:
-    """Checks last closed candle for hammer or bullish engulfing pattern."""
+    p1 = points["high"].iloc[-2]
+    p2 = points["high"].iloc[-1]
+
+
+    r1 = rsi_series.loc[
+        points.index[-2]
+    ]
+
+    r2 = rsi_series.loc[
+        points.index[-1]
+    ]
+
+
+    return (
+        p2 > p1
+        and
+        r2 < r1
+    )
+
+
+
+# =========================
+# SMART MONEY CONCEPTS
+# =========================
+
+
+def detect_bos(df):
+
+    last_high = last_swing_high(df)
+
+    last_close = df["close"].iloc[-1]
+
+
+    return bool(
+        last_close > last_high
+    )
+
+
+
+def detect_choch(df):
+
+    last_low = last_swing_low(df)
+
+    last_close = df["close"].iloc[-1]
+
+
+    return bool(
+        last_close < last_low
+    )
+
+
+
+def detect_order_block(df):
+
+    last = df.iloc[-2]
+
+    current = df.iloc[-1]
+
+
+    bullish = (
+        last["close"] < last["open"]
+        and
+        current["close"] > last["high"]
+    )
+
+
+    bearish = (
+        last["close"] > last["open"]
+        and
+        current["close"] < last["low"]
+    )
+
+
+    return {
+        "bullish": bool(bullish),
+        "bearish": bool(bearish)
+    }
+
+
+
+def detect_fvg(df):
+
+    if len(df) < 3:
+        return False
+
+
+    c1 = df.iloc[-3]
+    c3 = df.iloc[-1]
+
+
+    bullish_gap = (
+        c1["high"] < c3["low"]
+    )
+
+
+    bearish_gap = (
+        c1["low"] > c3["high"]
+    )
+
+
+    return bool(
+        bullish_gap or bearish_gap
+    )
+
+
+
+def detect_liquidity_sweep(df):
+
+    low_sweep = (
+        df["low"].iloc[-1]
+        <
+        df["low"].iloc[-10:-1].min()
+    )
+
+
+    high_sweep = (
+        df["high"].iloc[-1]
+        >
+        df["high"].iloc[-10:-1].max()
+    )
+
+
+    return {
+        "bullish": bool(low_sweep),
+        "bearish": bool(high_sweep)
+    }
+
+
+
+def premium_discount_zone(df):
+
+    high = df["high"].iloc[-50:].max()
+    low = df["low"].iloc[-50:].min()
+
+    mid = (
+        high + low
+    ) / 2
+
+
+    price = df["close"].iloc[-1]
+
+
+    return {
+        "premium": price > mid,
+        "discount": price < mid,
+        "equilibrium": price == mid
+    }
+
+
+
+# =========================
+# CANDLE PATTERN
+# =========================
+
+
+def bullish_candle_pattern(df):
+
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
-    body = abs(last["close"] - last["open"])
-    candle_range = last["high"] - last["low"]
-    lower_wick = min(last["open"], last["close"]) - last["low"]
 
-    is_hammer = candle_range > 0 and lower_wick > body * 2 and body < candle_range * 0.35
-
-    is_engulfing = (
-        prev["close"] < prev["open"] and
-        last["close"] > last["open"] and
-        last["close"] > prev["open"] and
-        last["open"] < prev["close"]
+    body = abs(
+        last["close"]
+        -
+        last["open"]
     )
-    return bool(is_hammer or is_engulfing)
+
+
+    candle_range = (
+        last["high"]
+        -
+        last["low"]
+    )
+
+
+    lower_wick = (
+        min(
+            last["open"],
+            last["close"]
+        )
+        -
+        last["low"]
+    )
+
+
+    hammer = (
+        candle_range > 0
+        and
+        lower_wick > body*2
+    )
+
+
+    engulfing = (
+        prev["close"] < prev["open"]
+        and
+        last["close"] > last["open"]
+        and
+        last["close"] > prev["open"]
+    )
+
+
+    return bool(
+        hammer or engulfing
+    )
